@@ -4,7 +4,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import http from 'node:http';
 import path from 'node:path';
-import { DownloadManager, validateSource, validateSettings, pieceMap } from '../server/manager.js';
+import { DownloadManager, validateSource, validateSettings, pieceMap, youtubeOptions, youtubeFormatArgs } from '../server/manager.js';
 import { createApp } from '../server/app.js';
 import { createFixture } from './fixture.js';
 
@@ -93,4 +93,16 @@ test('Settings and history survive restart; interrupted files resume correctly',
   const recovered = await new DownloadManager({ dataDir: path.join(dir, 'data'), downloadDir: path.join(dir, 'downloads'), pollMs: 80 }).init();
   try { const restored = recovered.jobs.find(j => j.id === id); assert.equal(restored.status, 'paused'); assert.equal(recovered.settings.connections, 8); await recovered.run(() => recovered.action(id, 'resume')); await complete(restored); }
   finally { await recovered.close(); }
+});
+
+
+test('YouTube options separate resolution and format, reject invalid combinations, and preserve legacy requests', () => {
+  assert.deepEqual(youtubeOptions({ quality: 'audio' }), { mode: 'audio', resolution: 'best', format: 'mp3', quality: 'audio' });
+  assert.deepEqual(youtubeOptions({ mode: 'video', resolution: '2160', format: 'mkv' }), { mode: 'video', resolution: '2160', format: 'mkv', quality: '2160' });
+  for (const value of [ {mode:'video',format:'mp3'}, {mode:'audio',format:'mp4'}, {mode:'video',resolution:'8000'}, {mode:'video',format:'mp4;touch hacked'}, {mode:'other'} ]) assert.throws(() => youtubeOptions(value));
+  const options = validateSource({ type: 'youtube', source: 'https://youtu.be/YE7VzlLtp-4', mode: 'audio', format: 'flac' });
+  assert.equal(options.mode, 'audio'); assert.equal(options.format, 'flac');
+  const webm = youtubeFormatArgs({ mode: 'video', resolution: '360', format: 'webm' });
+  assert.match(webm[1], /height<=360/); assert.match(webm[1], /ext=webm/); assert.ok(!webm[1].endsWith('/best'));
+  assert.deepEqual(youtubeFormatArgs({ mode:'audio',format:'wav' }), ['-f','bestaudio/best','--extract-audio','--audio-format','wav']);
 });

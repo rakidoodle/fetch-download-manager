@@ -42,7 +42,7 @@ test('Invalid links and server failures show useful errors', async ({ page }) =>
 });
 test('YouTube dialog enforces YouTube host and offers real quality options', async ({ page }) => {
   await page.getByRole('button', { name: 'YouTube videos', exact: true }).click(); await page.getByRole('button', { name: 'New download' }).click();
-  await expect(page.getByLabel('Video quality')).toBeVisible(); await page.getByLabel('Video quality').selectOption('audio'); await page.getByLabel('YouTube video URL').fill('https://example.com/video'); await page.getByRole('button', { name: 'Start download' }).click(); await expect(page.getByRole('dialog').getByRole('alert')).toContainText('YouTube video URL');
+  await expect(page.getByLabel('Resolution', { exact: true })).toBeVisible(); await page.getByLabel('Resolution', { exact: true }).selectOption('2160'); await page.getByLabel('Format', { exact: true }).selectOption('webm'); await page.getByRole('button', { name: 'Audio only', exact: true }).click(); await expect(page.getByLabel('Resolution', { exact: true })).toBeDisabled(); await page.getByLabel('Format', { exact: true }).selectOption('flac'); await page.getByLabel('YouTube video URL').fill('https://example.com/video'); await page.getByRole('button', { name: 'Start download' }).click(); await expect(page.getByRole('dialog').getByRole('alert')).toContainText('YouTube video URL');
 });
 test('Torrent file upload completes through real peer transfer', async ({ page }) => {
   await page.getByRole('button', { name: 'Torrents', exact: true }).click(); await page.getByRole('button', { name: 'New download' }).click();
@@ -66,4 +66,26 @@ test('Settings persist after reload; mobile view has named controls and no horiz
   await page.getByRole('button', { name: 'Settings', exact: true }).click(); await page.getByLabel('Connections per file').fill('12'); await page.getByLabel('Simultaneous downloads').selectOption('2'); await page.getByLabel('Web & torrent speed limit').fill('256'); await page.getByRole('button', { name: 'Save settings' }).click(); await page.reload(); await page.getByRole('button', { name: 'Settings', exact: true }).click(); await expect(page.getByLabel('Connections per file')).toHaveValue('12'); await expect(page.getByLabel('Simultaneous downloads')).toHaveValue('2'); await page.keyboard.press('Escape');
   for (const width of [390, 768, 1440]) { await page.setViewportSize({ width, height: 900 }); expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy(); await expect(page.getByRole('button', { name: 'Torrents', exact: true })).toBeVisible(); }
   await page.setViewportSize({ width: 390, height: 844 }); await page.getByRole('button', { name: 'New download' }).click(); await expect(page.getByRole('dialog')).toBeVisible(); expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
+});
+
+
+test('Dark theme defaults correctly, light choice persists, and PayPal links use the confirmed destination', async ({ page }) => {
+  await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
+  for (const link of await page.getByRole('link', {name:'Feed my Baby'}).all()) { await expect(link).toHaveAttribute('href','https://www.paypal.com/paypalme/ruffytrinidad'); await expect(link).toHaveAttribute('rel','noopener noreferrer'); }
+  await page.getByRole('button',{name:'Switch to light mode'}).click(); await expect(page.locator('html')).toHaveAttribute('data-theme','light'); await page.reload(); await expect(page.locator('html')).toHaveAttribute('data-theme','light'); await page.getByRole('button',{name:'Switch to dark mode'}).click();
+});
+test('Quick YouTube paste opens options and submits independent resolution/format choices', async ({ page }) => {
+  let payload;
+  await page.route('**/api/downloads', route => { payload=route.request().postDataJSON(); return route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({id:'form-payload-test'})}); });
+  await page.getByLabel('Paste download link').fill('https://youtu.be/YE7VzlLtp-4'); await page.getByRole('button',{name:'Add to queue'}).click();
+  await expect(page.getByRole('dialog')).toBeVisible(); await expect(page.getByLabel('YouTube video URL')).toHaveValue('https://youtu.be/YE7VzlLtp-4');
+  await page.getByLabel('Resolution',{exact:true}).selectOption('1440'); await page.getByLabel('Format',{exact:true}).selectOption('mkv'); await page.getByRole('button',{name:'Start download'}).click(); await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect(payload).toMatchObject({type:'youtube',mode:'video',resolution:'1440',format:'mkv'});
+});
+test('Artwork is keyboard interactive and respects reduced motion', async ({ page }) => {
+  const artwork=page.getByRole('button',{name:'Rotate download sculpture'});
+  await artwork.focus(); await page.keyboard.press('ArrowRight'); await expect(artwork).toHaveAttribute('style', /--tilt-y: 8deg/);
+  await page.emulateMedia({reducedMotion:'reduce'}); await expect(artwork).toBeDisabled();
+  expect(await page.locator('.artwork-stage img').evaluate(el=>getComputedStyle(el).transform)).toBe('none');
+  await page.getByRole('button',{name:'New download'}).click(); expect(await page.getByRole('dialog').evaluate(el=>getComputedStyle(el).animationName)).toBe('none');
 });

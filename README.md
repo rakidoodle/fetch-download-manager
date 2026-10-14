@@ -1,20 +1,24 @@
 # Fetch — All-in-One Download Manager
 
-**One place to download web files, YouTube videos, and torrents.**
+**Save files, videos, and music from one simple app.**
 
-Fetch is a download app that runs on your own computer. You open its control panel in a browser, paste a link, and watch the download progress. It can also split supported web files into smaller pieces and download those pieces at the same time.
+Fetch is like a delivery desk for files. Give it a link, and it brings the download to your computer. You can save files from websites, choose the quality and file type of a YouTube video, save only its sound, or download a torrent.
+
+You open Fetch in your browser, but the app works on your own computer. Its dark screen is the default; a button lets you switch to a light screen. You can pause a download, continue it later, or let extra downloads wait their turn.
+
+For a large web file, Fetch can ask for several smaller parts at the same time. Think of several helpers carrying different parts of a box. This can help when the website allows it. It cannot make your internet connection faster than its limit.
 
 Think of Fetch as a delivery desk with three doors:
 
 | Door | What comes through it | Example |
 | --- | --- | --- |
 | **Web files** | Files available through a direct web link | A ZIP archive, PDF, installer, or disk image |
-| **YouTube** | An available YouTube video's picture and sound | A video in up to 720p, or its sound saved as MP3 |
+| **YouTube** | An available YouTube video's picture and sound | Choose a maximum resolution through 4K, a video file type, or sound only |
 | **Torrents** | Files shared through the BitTorrent network | A Linux distribution shared by its publisher |
 
-You use the same dashboard for all three. You do not need a different control panel for each kind of download.
+You use the same dashboard for all three. You do not need a different control panel for each kind of download. Fetch now opens in dark mode, with a light-mode switch in the header, a silver interactive illustration, and motion that respects your browser’s reduced-motion preference.
 
-![Fetch desktop dashboard](artifacts/fetch-desktop.png)
+![Fetch dark dashboard — a new workspace with no personal downloads](artifacts/fetch-desktop.png)
 
 ## Start here
 
@@ -141,16 +145,23 @@ Links with embedded usernames or passwords are rejected. There is no browser-coo
 2. Paste a YouTube video URL.
 3. Select a quality and click **Start download**.
 
-| Choice | What you get |
+Choose **Video** or **Audio only** first. Then choose an output format. Video also offers a separate maximum resolution.
+
+| Setting | Available choices |
 | --- | --- |
-| **Best available** | The best available video/audio combination selected by yt-dlp |
-| **Up to 1080p** | A video no taller than 1080 pixels, when a matching format is available |
-| **Up to 720p** | A video no taller than 720 pixels, when a matching format is available |
-| **Audio only** | The video's available sound, converted to an MP3 file |
+| **Video resolution** | Best available, up to 2160p/4K, 1440p/QHD, 1080p, 720p, 480p, 360p, 240p, or 144p |
+| **Video format** | MP4, WebM, or MKV |
+| **Audio format** | MP3, M4A, FLAC, WAV, or Opus |
+
+MP4 is a familiar choice for most devices. WebM uses matching WebM streams when the source provides them. MKV can hold different video/audio codecs without changing the selected source codecs. A **codec** is the method used to store the picture or sound.
+
+MP3 is widely supported. M4A stores compact AAC audio. Opus is efficient for modern players. FLAC stores audio without further lossy compression, but cannot bring back detail missing from the source. WAV stores uncompressed audio and can create larger files.
+
+In audio mode, the resolution field is disabled because sound has no video pixel height. The app uses the best available audio source. A small output summary shows the choices before you start.
 
 YouTube often provides picture and sound as separate streams. Fetch downloads them and lets FFmpeg combine them. During this work, the status can change to **Processing**. Wait for **Completed** before saving the result.
 
-A requested quality is a limit, not a promise that the source contains that exact resolution. Video downloads request MP4 when combining streams; the final extension also depends on the source and the selected format. Audio-only downloads target MP3.
+A requested quality is a limit, not a promise that the source contains that exact resolution. Video downloads target the chosen container. MP4 prefers suitable source streams and uses FFmpeg conversion where needed; WebM requires matching streams; MKV remuxes the selected source codecs. Audio is extracted or converted to the chosen audio format. The finished output is checked before the app reports completion.
 
 Playlists are disabled. Private, deleted, restricted, login-required, unavailable, or DRM-protected videos can fail. There is no account sign-in or cookies interface. YouTube changes can also require a newer version of yt-dlp.
 
@@ -240,7 +251,7 @@ A sudden power loss or forced crash can interrupt the latest state save. The rec
 
 The interface, history, settings, and downloaded outputs live on the computer running Fetch. There is no hosted Fetch account service or remote storage service in this app.
 
-The app contacts the sources you choose. A website or torrent peer can see the connection information normally involved in a download. The interface also loads its optional Google Fonts from the web and falls back to system fonts if they are unavailable.
+The app contacts the sources you choose. A website or torrent peer can see the connection information normally involved in a download. The interface uses your system fonts and serves its artwork from the project. It does not need a separate font service.
 
 The server listens on `127.0.0.1`, so the control panel is intended for access from the same computer. It checks the request's host and origin and uses a fresh per-run key for changes. In plain language, it checks which page is asking and requires a matching key before accepting download-control commands.
 
@@ -334,8 +345,8 @@ The recorded verification run on **14 October 2026** passed:
 | Check | Recorded result |
 | --- | --- |
 | TypeScript check and production build | Passed |
-| Backend tests | **15 passed, 0 failed** |
-| Production browser tests | **9 passed, 0 failed** |
+| Backend tests | **25 passed, 0 failed** |
+| Production browser tests | **12 passed, 0 failed** |
 | Real YouTube 720p video with audio | Passed; output streams inspected with ffprobe |
 | Real YouTube pause/resume | Passed |
 | Real YouTube MP3 conversion | Passed; MP3 stream inspected with ffprobe |
@@ -343,9 +354,11 @@ The recorded verification run on **14 October 2026** passed:
 
 The web tests compare downloaded bytes with the original bytes. The torrent tests use a real TCP peer and tracker. The magnet test exchanges real torrent metadata. These checks exercise the engines rather than drawing pretend progress bars.
 
+Nine media-adapter tests run real yt-dlp and FFmpeg against short locally generated clips. They inspect all three video containers and all five audio formats with ffprobe, and check that a missing source reports failure. They do not bypass the public API’s YouTube-host validation.
+
 The tests also cover servers without ranges, redirects, tiny files, queue limits, pause/resume, cancellation, retries, missing resources, truncated responses, history removal, file-path containment, origin/key/host checks, and normal restart recovery.
 
-Browser tests click the actual interface and check file saving, dialogs, keyboard focus, errors, search, filters, sorting, torrent uploads, magnets, settings, and layouts at 390, 768, and 1440 pixels wide.
+Browser tests click the actual interface and check file saving, dialogs, keyboard focus, errors, search, filters, sorting, torrent uploads, magnets, settings, layouts at 390, 768, and 1440 pixels wide, theme persistence, the confirmed PayPal link, independent YouTube resolution/format submission, and keyboard/reduced-motion artwork behavior.
 
 ### Run the local checks
 
@@ -387,9 +400,19 @@ Read the [recorded verification report](artifacts/VERIFICATION.md) for more deta
 
 ## Preview on a narrow screen
 
-![Fetch narrow-screen dashboard](artifacts/fetch-mobile.png)
+![Fetch narrow-screen dark dashboard — a new workspace](artifacts/fetch-mobile.png)
 
 The layout adjusts to a smaller browser window. The app's server and download engines still run on the computer hosting it; opening the layout at a mobile-sized width does not make Fetch a native phone app.
+
+## Appearance and support
+
+Fetch starts in dark mode unless this browser has a saved light-mode preference. Use the sun or moon button in the header to switch. The choice is saved in your browser, independently of the server’s download settings.
+
+The silver download sculpture responds to mouse movement. You can also focus it and press the left/right arrow keys or activate it to rotate. Its source buttons open a new download with the selected source. If reduced motion is enabled, decorative movement stops and the task controls remain available.
+
+The **Feed my Baby** link opens [the creator’s PayPal page](https://www.paypal.com/paypalme/ruffytrinidad) in a new tab. You choose what to do there. No payment is automatically made by Fetch.
+
+The custom brand icon and favicon are SVG files. The generated illustration is an optimized WebP with transparency. The visual reference is Apple’s restrained product craft; Fetch is an independent app.
 
 ## Engine documentation
 

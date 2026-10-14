@@ -1,20 +1,17 @@
 # Fetch verification — 14 October 2026
 
-This report records the local verification run before the source was uploaded to GitHub. The reviewed app used http://localhost:4317. No public web service was deployed.
+This report records local testing of the dark interface redesign and expanded YouTube controls. The app runs at http://localhost:4317. The private GitHub repository stores its source; no public web download service is deployed.
 
-- TypeScript check and production Vite build: passed.
-- Backend integration tests: 15 passed, 0 failed.
-- Production browser tests: 9 passed, 0 failed.
-- Live YouTube tests: real 720p video with audio, pause/resume, and MP3 conversion passed. FFprobe confirmed the expected streams.
-- Production dependency audit: 0 known vulnerabilities reported by npm.
-- Final local production preview: HTTP 200, no browser page errors, no mobile horizontal overflow.
+- TypeScript check and production build: passed.
+- Backend/adapter tests: 25 passed, including 9 real yt-dlp/FFmpeg media-format checks.
+- Production browser tests: 12 checks cover download flows, theme persistence, the PayPal destination, YouTube options, and interactive/reduced-motion artwork.
+- Live YouTube checks: 720p video with audio, pause/resume, and MP3 output passed; ffprobe inspected the streams.
+- Range and torrent transfers compare complete bytes with the source; torrent and magnet tests use a real local TCP peer/tracker and metadata exchange.
 
-Verified transfer integrity using byte-for-byte comparisons. Torrent and magnet tests use actual TCP peer transfers and metadata exchange, not simulated progress.
+MP4, WebM, and MKV video plus MP3, M4A, FLAC, WAV, and Opus audio were verified using real engines and local synthetic clips. YouTube's own availability and restrictions still determine what can be retrieved remotely.
 
-Fixed failures discovered during testing: invalid aria2 listen port, completed torrent registration preventing repeat downloads, file serving from hidden download folders, rapid-paste submission race, and whole-process-group signaling for media subprocesses.
+The visual review covers dark desktop, 375px mobile, the 718px review viewport, landscape, light mode, and the YouTube sheet. The independent finish reviewer scored the listed visual fixes and the final mobile overlap as resolved, with disposition ship at that scope. Built design tokens and motion decisions are recorded in DESIGN.md.
 
-Review images: `fetch-desktop.png` and `fetch-mobile.png`.
+Past fixes retained: aria2 startup port validation, releasing completed torrent registrations, serving owned files from hidden test folders, rapid-paste submission handling, and group signaling for media subprocesses. Redesign fixes include unambiguous quick-start labels, unavailable-state consistency, mobile headline/copy spacing, and larger transfer action targets.
 
-No known failures remain in the tested flows. Verification does not guarantee zero bugs across all remote servers, video restrictions, torrent swarms, or future engine changes. Parallel speed improvements depend on server byte-range support, server limits, and available bandwidth.
-
-Run `npm run check` to repeat local automated checks. Run `npm run test:live` to repeat live YouTube checks (network required).
+Run npm run check for local tests; npm run test:live for separate network-dependent YouTube checks. No claim of zero bugs across all sources or future engine updates is made.

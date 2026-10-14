@@ -28,8 +28,26 @@ export function validateSource(input) {
   if (url.username || url.password) throw new Error('Links with embedded credentials are not supported.');
   if (type === 'youtube' && !['youtube.com', 'www.youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtu.be'].includes(url.hostname.toLowerCase())) throw new Error('Enter a YouTube video URL.');
   const quality = input.quality || 'best';
-  if (!['best', '1080', '720', 'audio'].includes(quality)) throw new Error('Choose a supported video quality.');
-  return { type, source: url.href, quality };
+  if (!['best', '2160', '1440', '1080', '720', '480', '360', '240', '144', 'audio'].includes(quality)) throw new Error('Choose a supported video quality.');
+  return { type, source: url.href, quality, ...(type === 'youtube' ? youtubeOptions(input) : {}) };
+}
+export function youtubeOptions(input) {
+  const mode = input.mode ?? (input.quality === 'audio' ? 'audio' : 'video');
+  if (!['video', 'audio'].includes(mode)) throw new Error('Choose video or audio.');
+  const resolution = input.resolution ?? (input.quality === 'audio' ? 'best' : input.quality || 'best');
+  if (!['best', '2160', '1440', '1080', '720', '480', '360', '240', '144'].includes(resolution)) throw new Error('Choose a supported resolution.');
+  const format = input.format ?? (mode === 'audio' ? 'mp3' : 'mp4');
+  const formats = mode === 'audio' ? ['mp3', 'm4a', 'flac', 'wav', 'opus'] : ['mp4', 'webm', 'mkv'];
+  if (!formats.includes(format)) throw new Error(`Choose a supported ${mode} format.`);
+  return { mode, resolution, format, quality: mode === 'audio' ? 'audio' : resolution };
+}
+export function youtubeFormatArgs(input) {
+  const { mode, resolution, format } = youtubeOptions(input);
+  if (mode === 'audio') return ['-f', 'bestaudio/best', '--extract-audio', '--audio-format', format];
+  const cap = resolution === 'best' ? '' : `[height<=${resolution}]`;
+  if (format === 'webm') return ['-f', `bv*${cap}[ext=webm]+ba[ext=webm]/b${cap}[ext=webm]`, '--merge-output-format', 'webm', '--remux-video', 'webm'];
+  if (format === 'mp4') return ['-f', `bv*${cap}[ext=mp4]+ba[ext=m4a]/b${cap}[ext=mp4]/bv*${cap}+ba/b${cap}`, '--merge-output-format', 'mp4', '--recode-video', 'mp4'];
+  return ['-f', `bv*${cap}+ba/b${cap}`, '--merge-output-format', 'mkv', '--remux-video', 'mkv'];
 }
 export function validateSettings(input) {
   if (!input || typeof input !== 'object') throw new Error('Invalid settings.');
@@ -119,8 +137,7 @@ export class DownloadManager extends EventEmitter {
   startYoutube(job) {
     const args = ['--ignore-config', '--no-simulate', '--no-playlist', '--no-colors', '--newline', '--progress', '--progress-delta', '0.3', '--continue', '--no-overwrites', '--restrict-filenames', '--socket-timeout', '30', '--retries', '3', '--js-runtimes', 'node', '--concurrent-fragments', String(this.settings.connections), '--paths', path.join(this.downloadDir, job.id), '--output', '%(title).150B [%(id)s].%(ext)s', '--print', 'before_dl:FETCH_META:%(title)j', '--print', 'after_move:FETCH_FILE:%(filepath)j', '--progress-template', 'download:FETCH_PROGRESS:%(progress)j', '--progress-template', 'postprocess:FETCH_PROCESS:%(progress)j'];
     if (this.settings.speedLimit) args.push('--limit-rate', `${this.settings.speedLimit}K`);
-    if (job.quality === 'audio') args.push('-f', 'bestaudio/best', '--extract-audio', '--audio-format', 'mp3');
-    else args.push('-f', job.quality === 'best' ? 'bv*+ba/b' : `bv*[height<=${job.quality}]+ba/b[height<=${job.quality}]`, '--merge-output-format', 'mp4');
+    args.push(...youtubeFormatArgs(job));
     args.push('--', job.source);
     const child = spawn(this.ytdlp, args, { stdio: ['ignore', 'pipe', 'pipe'], detached: process.platform !== 'win32' });
     this.processes.set(job.id, child); job.status = 'downloading'; let buffer = ''; let errors = ''; const streams = new Map();

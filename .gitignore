@@ -10,3 +10,9 @@ playwright-report/
 .env
 .env.*
 !.env.example
+.impeccable/review/
+.impeccable/mocks/
+.impeccable/asset-prompts/
+.impeccable/seed-*.txt
+.impeccable/questions/
+.impeccable/config.local.json
